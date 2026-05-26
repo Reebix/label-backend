@@ -1,14 +1,16 @@
 use ab_glyph::{FontRef, PxScale};
 use actix_files::NamedFile;
-use clap;
-use qrcode::QrCode;
-use std::process::Command;
 
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_multipart::form::tempfile::TempFile;
+use actix_multipart::form::MultipartForm;
+use actix_web::{get, post, web, App, Error, HttpResponse, HttpServer, Responder};
+use clap;
 use clap::Parser;
 use imageproc::drawing::{draw_text_mut, text_size};
 use imageproc::image::{ImageBuffer, Luma};
+use qrcode::QrCode;
 use serde::Deserialize;
+use std::process::Command;
 
 #[derive(Deserialize)]
 struct LabelInfo {
@@ -26,6 +28,24 @@ async fn index() -> impl Responder {
 #[get("/last")]
 async fn last() -> impl Responder {
     NamedFile::open("./label.png")
+}
+
+#[derive(Debug, MultipartForm)]
+struct UploadForm {
+    #[multipart(rename = "file")]
+    files: Vec<TempFile>,
+}
+#[post("/file")]
+async fn file(MultipartForm(form): MultipartForm<UploadForm>) -> Result<impl Responder, Error> {
+    for f in form.files {
+        let path = "upload".to_string();
+
+        std::fs::copy(f.file.path(), &path)?;
+
+        Command::new("lprint").arg("upload").spawn()?;
+    }
+
+    Ok(HttpResponse::Ok())
 }
 
 #[post("/preview")]
@@ -196,6 +216,7 @@ async fn main() -> std::io::Result<()> {
             .service(last)
             .service(index)
             .service(preview)
+            .service(file)
     })
     .bind((args.host.as_str(), args.port))?
     .run()

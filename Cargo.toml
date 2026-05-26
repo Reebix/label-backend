@@ -17,9 +17,10 @@ ab_glyph = "0.2.32"
 textwrap = "0.16.2"
 clap = { version = "4.6.1", features = ["derive"] }
 actix-files = "0.6.10"
+actix-multipart = "0.6.1"
 
 
-[target.armv7-unknown-linux-gnueabihf]
+[target.arm-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"
 ar = "arm-linux-gnueabihf-ar"
 rustflags = ["-l", "c"]
