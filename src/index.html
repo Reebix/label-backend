@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Label Printer</title>
+</head>
+<body>
+<div style="justify-content: center; display: flex; flex-direction: column; align-items: center;">
+    <img alt="preview" src="/last" width="20%"/>
+    <div style="justify-content: center; display: flex; flex-direction: column; align-items: center;">
+        <label for="labelText">Label Text:</label>
+        <input id="labelText" name="labelText" required type="text">
+        <label for="labelQrText">QR Code Text:</label>
+        <input id="labelQrText" name="labelQrText" required type="text">
+        <button id="submit" type="submit">Print Label</button>
+    </div>
+</div>
+</body>
+
+
+<script>
+    const submit = document.getElementById('submit');
+
+    submit.addEventListener('click', (event) => {
+        event.preventDefault();
+        const labelText = document.getElementById('labelText').value;
+        const labelQrText = document.getElementById('labelQrText').value;
+        fetch('/label', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({name: labelText, qr: labelQrText})
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to print label.');
+            }
+        }).catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while printing the label.');
+        });
+    });
+
+</script>
+</html>

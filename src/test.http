@@ -2,6 +2,6 @@ POST localhost:8080/label
 Content-Type: application/json
 
 {
-  "name": "test",
-  "qr": "Test"
+  "name": "Löt Station",
+  "qr": "https://www.google.com"
 }
