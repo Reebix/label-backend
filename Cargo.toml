@@ -1,7 +1,7 @@
 [package]
 name = "label-backend"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 actix-web = "4.13.0"
@@ -24,3 +24,6 @@ actix-multipart = "0.6.1"
 linker = "arm-linux-gnueabihf-gcc"
 ar = "arm-linux-gnueabihf-ar"
 rustflags = ["-l", "c"]
+
+[profile.release]
+opt-level = "s"

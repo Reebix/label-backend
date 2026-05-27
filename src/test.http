@@ -5,3 +5,14 @@ Content-Type: application/json
   "name": "Löt Station",
   "qr": "https://www.google.com"
 }
+
+###
+
+POST pi.local:8080/label
+Content-Type: application/json
+
+{
+  "name": "Prusa",
+  "qr": "https://ha.lehre.vit.intern/config/devices/device/376ef7fca0ed430bb05f6abd743279e2",
+  "flipped": false
+}

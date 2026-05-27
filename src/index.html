@@ -12,6 +12,8 @@
         <input id="labelText" name="labelText" required type="text">
         <label for="labelQrText">QR Code Text:</label>
         <input id="labelQrText" name="labelQrText" required type="text">
+        <label for="flipped">Flipped:</label>
+        <input id="flipped" name="flipped" required type="checkbox">
         <button id="submit" type="submit">Print Label</button>
         <button id="preview">Preview</button>
     </div>
@@ -20,44 +22,63 @@
 
 
 <script>
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const labelText = localStorage.getItem('labelText');
+        const labelQrText = localStorage.getItem('labelQrText');
+        const flipped = localStorage.getItem('flipped');
+
+        if (labelText) {
+            document.getElementById('labelText').value = labelText;
+        }
+
+        if (labelQrText) {
+            document.getElementById('labelQrText').value = labelQrText;
+        }
+
+        if (flipped) {
+            document.getElementById('flipped').checked = flipped === 'true';
+        }
+    });
+
     const prev = document.getElementById('prev');
     prev.src = "/last?" + new Date().getTime();
 
     const submit = document.getElementById('submit');
     const preview = document.getElementById('preview');
 
-    preview.addEventListener('click', (event) => {
-        event.preventDefault();
-        const labelText = document.getElementById('labelText').value;
-        const labelQrText = document.getElementById('labelQrText').value;
-        fetch('/preview', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({name: labelText, qr: labelQrText})
-        }).then(response => {
-            if (response.ok) {
-                window.location.reload();
-            } else {
-                alert('Failed to print label.');
-            }
-        }).catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while printing the label.');
-        });
-    });
 
     submit.addEventListener('click', (event) => {
         event.preventDefault();
+        request('/label');
+    });
+
+    preview.addEventListener('click', (event) => {
+        event.preventDefault();
+        request('/preview');
+    });
+
+    function request(endpoint) {
         const labelText = document.getElementById('labelText').value;
         const labelQrText = document.getElementById('labelQrText').value;
-        fetch('/label', {
+        const flipped = document.getElementById('flipped').checked;
+
+        localStorage.setItem('labelText', labelText);
+        localStorage.setItem('labelQrText', labelQrText);
+        localStorage.setItem('flipped', flipped);
+
+        let body = {
+            name: labelText,
+            qr: labelQrText,
+            flipped: flipped
+        }
+
+        fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({name: labelText, qr: labelQrText})
+            body: JSON.stringify(body)
         }).then(response => {
             if (response.ok) {
                 window.location.reload();
@@ -68,7 +89,9 @@
             console.error('Error:', error);
             alert('An error occurred while printing the label.');
         });
-    });
+
+    }
+
 
 </script>
 </html>

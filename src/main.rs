@@ -16,6 +16,7 @@ use std::process::Command;
 struct LabelInfo {
     name: String,
     qr: String,
+    flipped: Option<bool>,
 }
 
 #[get("/")]
@@ -48,8 +49,7 @@ async fn file(MultipartForm(form): MultipartForm<UploadForm>) -> Result<impl Res
     Ok(HttpResponse::Ok())
 }
 
-#[post("/preview")]
-async fn preview(json: web::Json<LabelInfo>) -> impl Responder {
+fn gen_label(json: web::Json<LabelInfo>) {
     let mut width = 1000;
 
     let bits = json.qr.clone();
@@ -108,84 +108,34 @@ async fn preview(json: web::Json<LabelInfo>) -> impl Responder {
 
                 *pixel = image::Rgb([raw, raw, raw]);
             } else {
-                let col = 255u8
-                    - raw_text[(width - x + width * (height - y + width - 1) - 1) as usize].0[0];
+                let mut col = 255u8;
+
+                if let Some(flipped) = json.flipped
+                    && flipped
+                {
+                    col -=
+                        raw_text[(width - x + width * (height - y + width - 1) - 1) as usize].0[0];
+                } else {
+                    col -= raw_text[(x + width * y) as usize].0[0];
+                }
+
                 *pixel = image::Rgb([col, col, col]);
             }
         });
 
     label_image_buf.save("./label.png").unwrap();
+}
+
+#[post("/preview")]
+async fn preview(json: web::Json<LabelInfo>) -> impl Responder {
+    gen_label(json);
 
     HttpResponse::Ok().body("Label created!")
 }
 
 #[post("/label")]
 async fn label(json: web::Json<LabelInfo>) -> impl Responder {
-    let mut width = 1000;
-
-    let bits = json.qr.clone();
-    let code = QrCode::new(bits).unwrap();
-
-    let qr = code
-        .render::<Luma<u8>>()
-        .quiet_zone(false)
-        .max_dimensions(width, width)
-        .build();
-
-    let raw_qr = qr.as_raw();
-    let qr_dim = qr.height();
-    width = qr_dim;
-
-    let mut label_image_buf = ImageBuffer::new(width, width * 2);
-
-    let font = FontRef::try_from_slice(include_bytes!("../DejaVuSans.ttf")).unwrap();
-
-    let mut s = width as f32;
-    let mut scale = PxScale::from(s);
-    while text_size(scale, &font, &json.name).0 > width {
-        let new_size = s * 0.99;
-        if new_size < 1.0 {
-            break;
-        }
-        s = new_size;
-        scale = PxScale::from(s);
-    }
-
-    let final_size = text_size(scale, &font, &json.name);
-    let mut text_image = ImageBuffer::new(width, width * 2);
-
-    draw_text_mut(
-        &mut text_image,
-        image::Rgb([255u8, 255u8, 255u8]),
-        ((width - final_size.0) / 2) as i32,
-        (width + width / 2 - final_size.1 / 2) as i32,
-        scale,
-        &font,
-        &json.name,
-    );
-    let raw_text = text_image.pixels().collect::<Vec<_>>();
-
-    let height = width * 2;
-
-    label_image_buf
-        .enumerate_pixels_mut()
-        .for_each(|(x, y, pixel)| {
-            if y < width {
-                let mut raw = 255u8;
-                let pos = y * width + x;
-                if pos < raw_qr.len() as u32 {
-                    raw = raw_qr[(x + width * y) as usize];
-                }
-
-                *pixel = image::Rgb([raw, raw, raw]);
-            } else {
-                let col = 255u8
-                    - raw_text[(width - x + width * (height - y + width - 1) - 1) as usize].0[0];
-                *pixel = image::Rgb([col, col, col]);
-            }
-        });
-
-    label_image_buf.save("./label.png").unwrap();
+    gen_label(json);
 
     let mut cmd = Command::new("lprint");
 
