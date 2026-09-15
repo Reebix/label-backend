@@ -4,21 +4,20 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-actix-web = "4.13.0"
+actix-web = "4.15.0"
 tokio = { version = "1.52.3", features = ["rt", "rt-multi-thread", "macros"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 qrcode = "0.14.1"
 image = "0.25.10"
-imageproc = { version = "0.26.2", features = ["text"] }
+imageproc = { version = "0.27.0", features = ["text"] }
 text_on_image = "0.1.0"
 rusttype = "0.9.3"
 ab_glyph = "0.2.32"
 textwrap = "0.16.2"
 clap = { version = "4.6.1", features = ["derive"] }
-actix-files = "0.6.10"
-actix-multipart = "0.6.1"
-
+actix-files = "0.7.0"
+actix-multipart = "0.8.1"
 
 [target.arm-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"

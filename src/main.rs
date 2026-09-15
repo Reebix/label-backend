@@ -1,15 +1,17 @@
 use ab_glyph::{FontRef, PxScale};
 use actix_files::NamedFile;
+use std::env::temp_dir;
 
-use actix_multipart::form::tempfile::TempFile;
 use actix_multipart::form::MultipartForm;
-use actix_web::{get, post, web, App, Error, HttpResponse, HttpServer, Responder};
+use actix_multipart::form::tempfile::TempFile;
+use actix_web::{App, Error, HttpResponse, HttpServer, Responder, get, post, web};
 use clap;
 use clap::Parser;
 use imageproc::drawing::{draw_text_mut, text_size};
 use imageproc::image::{ImageBuffer, Luma};
 use qrcode::QrCode;
 use serde::Deserialize;
+use serde_json::json;
 use std::process::Command;
 
 #[derive(Deserialize)]
@@ -28,7 +30,8 @@ async fn index() -> impl Responder {
 
 #[get("/last")]
 async fn last() -> impl Responder {
-    NamedFile::open("./label.png")
+    let path = temp_dir().join("label.png");
+    NamedFile::open(path).unwrap()
 }
 
 #[derive(Debug, MultipartForm)]
@@ -39,17 +42,17 @@ struct UploadForm {
 #[post("/file")]
 async fn file(MultipartForm(form): MultipartForm<UploadForm>) -> Result<impl Responder, Error> {
     for f in form.files {
-        let path = "upload".to_string();
+        let path = temp_dir().join("label.png");
 
         std::fs::copy(f.file.path(), &path)?;
 
-        Command::new("lprint").arg("upload").spawn()?;
+        Command::new("lprint").arg(&path).spawn()?;
     }
 
     Ok(HttpResponse::Ok())
 }
 
-fn gen_label(json: web::Json<LabelInfo>) {
+fn gen_label_qr(json: web::Json<LabelInfo>) {
     let mut width = 1000;
 
     let bits = json.qr.clone();
@@ -123,23 +126,97 @@ fn gen_label(json: web::Json<LabelInfo>) {
             }
         });
 
-    label_image_buf.save("./label.png").unwrap();
+    let path = temp_dir().join("label.png");
+    label_image_buf.save(&path).unwrap();
+}
+
+fn gen_label(json: web::Json<LabelInfo>) {
+    let width = 2000u32;
+    let height = 1000u32;
+
+    let font = FontRef::try_from_slice(include_bytes!("../DejaVuSans.ttf")).unwrap();
+
+    let mut size = height as f32;
+    let mut scale = PxScale::from(size);
+
+    while text_size(scale, &font, &json.name).1 > height
+        || text_size(scale, &font, &json.name).0 > width
+    {
+        size *= 0.99;
+
+        if size < 0.01 {
+            break;
+        }
+
+        scale = PxScale::from(size);
+    }
+
+    let final_size = text_size(scale, &font, &json.name);
+
+    println!("final_size: {:?}", final_size);
+
+    let mut text_image = ImageBuffer::new(width, height);
+
+    let x = ((width as i32 - final_size.0 as i32) / 2).max(0);
+    let y = ((height as i32 - final_size.1 as i32) / 2).max(0);
+
+    draw_text_mut(
+        &mut text_image,
+        image::Rgb([255u8, 255u8, 255u8]),
+        x,
+        y,
+        scale,
+        &font,
+        &json.name,
+    );
+
+    let mut label_image_buf = ImageBuffer::new(width, height);
+
+    label_image_buf
+        .enumerate_pixels_mut()
+        .for_each(|(x, y, pixel)| {
+            let src_x = if json.flipped.unwrap_or(false) {
+                width - 1 - x
+            } else {
+                x
+            };
+
+            let src_y = if json.flipped.unwrap_or(false) {
+                height - 1 - y
+            } else {
+                y
+            };
+
+            let raw_pixel = text_image.get_pixel(src_x, src_y);
+
+            let col = 255u8.saturating_sub(raw_pixel.0[0]);
+
+            *pixel = image::Rgb([col, col, col]);
+        });
+
+    let path = temp_dir().join("label.png");
+    label_image_buf.save(&path).unwrap();
 }
 
 #[post("/preview")]
 async fn preview(json: web::Json<LabelInfo>) -> impl Responder {
-    gen_label(json);
+    if json.qr.is_empty() {
+        gen_label(json);
+    } else {
+        gen_label_qr(json);
+    }
 
     HttpResponse::Ok().body("Label created!")
 }
 
 #[post("/label")]
 async fn label(json: web::Json<LabelInfo>) -> impl Responder {
-    gen_label(json);
+    gen_label_qr(json);
 
     let mut cmd = Command::new("lprint");
+    let path = temp_dir().join("label.png");
 
-    cmd.arg("label.png").spawn().unwrap();
+    cmd.arg(&path).spawn().unwrap();
 
     HttpResponse::Ok().body("Label created!")
 }
