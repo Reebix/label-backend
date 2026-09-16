@@ -1,0 +1,21 @@
+services:
+  build:
+    image: rust:latest
+    working_dir: /app
+    volumes:
+      - x.:/app
+      - cargo-cache:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+    environment:
+      CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
+    command: >
+      bash -c "
+        apt-get update &&
+        apt-get install -y gcc-arm-linux-gnueabihf &&
+        rustup target add armv7-unknown-linux-gnueabihf &&
+        cargo build --release --target armv7-unknown-linux-gnueabihf
+      "
+
+volumes:
+  cargo-cache:
+  cargo-git:
