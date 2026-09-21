@@ -211,7 +211,11 @@ async fn preview(json: web::Json<LabelInfo>) -> impl Responder {
 
 #[post("/label")]
 async fn label(json: web::Json<LabelInfo>) -> impl Responder {
-    gen_label_qr(json);
+    if json.qr.is_empty() {
+        gen_label(json);
+    } else {
+        gen_label_qr(json);
+    }
 
     let mut cmd = Command::new("lprint");
     let path = temp_dir().join("label.png");
